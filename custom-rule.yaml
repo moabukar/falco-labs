@@ -32,3 +32,17 @@
   output: "Shell spawned in container (command=%proc.cmdline, container=%container.id)"
   priority: NOTICE
   tags: [container, runtime]
+
+- rule: shell_in_container
+  desc: notice shell activity within a container
+  condition: >
+    evt.type = execve and 
+    evt.dir = < and 
+    container.id != host and 
+    (proc.name = bash or
+     proc.name = ksh)    
+  output: >
+    shell in a container
+    (user=%user.name container_id=%container.id container_name=%container.name 
+    shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline)    
+  priority: WARNING
