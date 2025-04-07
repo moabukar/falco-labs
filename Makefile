@@ -1,4 +1,4 @@
-.PHONY: up logs down
+.PHONY: up logs down gen
 
 up:
 	./setup.sh up
@@ -8,3 +8,6 @@ logs:
 
 down:
 	./setup.sh down
+
+gen:
+	./generate_events.sh

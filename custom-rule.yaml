@@ -5,9 +5,30 @@
   priority: WARNING
   tags: [network, curl, suspicious]
 
+- rule: "Read sensitive file /etc/shadow"
+  desc: "Detect any read access to /etc/shadow"
+  condition: "evt.type in (open, openat, openat2) and fd.name = /etc/shadow"
+  output: "Sensitive file /etc/shadow read (command=%proc.cmdline user=%user.name)"
+  priority: WARNING
+  tags: [filesystem, sensitive]
+
 - rule: "Write to /etc directory"
-  desc: "Detect any write operations to files under /etc"
-  condition: "evt.type in (open,openat,openat2) and evt.is_open_write=true and fd.name startswith /etc"
-  output: "File in /etc written by user=%user.name (command=%proc.cmdline)"
+  desc: "Detect write operations to any file under /etc"
+  condition: "evt.type in (open, openat, openat2) and evt.is_open_write=true and fd.name startswith /etc"
+  output: "File in /etc written (command=%proc.cmdline user=%user.name)"
   priority: WARNING
   tags: [filesystem, custom]
+
+- rule: "Write to /etc/sudoers"
+  desc: "Detect any write to /etc/sudoers"
+  condition: "evt.type in (open, openat, openat2) and evt.is_open_write=true and fd.name = /etc/sudoers"
+  output: "Suspicious write to /etc/sudoers (command=%proc.cmdline user=%user.name)"
+  priority: CRITICAL
+  tags: [privilege_escalation, custom]
+
+- rule: "Shell spawned in container"
+  desc: "Detect any shell spawned in a container"
+  condition: "proc.name in (sh, bash, zsh) and container.id != host"
+  output: "Shell spawned in container (command=%proc.cmdline, container=%container.id)"
+  priority: NOTICE
+  tags: [container, runtime]

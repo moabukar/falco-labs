@@ -31,7 +31,18 @@ if [ "$1" == "up" ]; then
   echo "[+] Deploying nginx deployment..."
   kubectl create deployment nginx --image=nginx
 
-  echo "[+] Falco deployed. Watching logs..."
+  echo "[+] Installing Prometheus & Grafana..."
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update
+  helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+    --namespace monitoring --create-namespace
+
+  echo "[+] Forwarding Grafana service on port 3000..."
+  kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80 &
+  
+  echo "[+] Lab setup complete."
+  echo "[+] To generate events, run: ./generate_events.sh"
+  echo "[+] Tailing Falco logs..."
   kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 
 elif [ "$1" == "logs" ]; then
@@ -42,7 +53,10 @@ elif [ "$1" == "down" ]; then
   echo "[+] Uninstalling Falco..."
   helm uninstall falco -n falco || true
 
-  echo "[+] Deleting all Kind clusters..."
+  echo "[+] Uninstalling Prometheus & Grafana..."
+  helm uninstall kube-prometheus-stack -n monitoring || true
+
+  echo "[+] Deleting all kind clusters..."
   for cluster in $(kind get clusters); do
     echo "[+] Deleting cluster: $cluster"
     kind delete cluster --name "$cluster"
