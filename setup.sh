@@ -39,7 +39,10 @@ if [ "$1" == "up" ]; then
 
   echo "[+] Forwarding Grafana service on port 3000..."
   kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80 &
-  
+
+  echo "[+] Waiting for Falco pods to be Ready..."
+  kubectl wait --for=condition=Ready --timeout=180s pods -l app.kubernetes.io/name=falco -n falco
+
   echo "[+] Lab setup complete."
   echo "[+] To generate events, run: ./generate_events.sh"
   echo "[+] Tailing Falco logs..."
