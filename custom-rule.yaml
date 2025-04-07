@@ -1,0 +1,13 @@
+- rule: Detect curl in container
+  desc: Someone ran curl inside a container
+  condition: container and proc.name = "curl"
+  output: "⚠️ curl detected: user=%user.name command=%proc.cmdline container=%container.id"
+  priority: WARNING
+  tags: [network, curl, suspicious]
+
+- rule: "Write to /etc directory"
+  desc: "Detect any write operations to files under /etc"
+  condition: "evt.type in (open,openat,openat2) and evt.is_open_write=true and fd.name startswith /etc"
+  output: "File in /etc written by user=%user.name (command=%proc.cmdline)"
+  priority: WARNING
+  tags: [filesystem, custom]

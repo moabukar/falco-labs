@@ -1,0 +1,12 @@
+# Enable tty for Falco's interactive output
+tty: true
+
+# Enable JSON output for Falco events
+jsonOutput: true
+jsonIncludeOutputProperty: true
+
+# You can add further custom settings here.
+# For example, if you wish to use an HTTP output endpoint:
+# httpOutput:
+#   enabled: true
+#   url: "http://falco-falcosidekick:2801/"
