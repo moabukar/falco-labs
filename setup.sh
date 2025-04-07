@@ -23,12 +23,12 @@ if [ "$1" == "up" ]; then
   helm repo add falcosecurity https://falcosecurity.github.io/charts
   helm repo update
 
-  echo "[+] Installing Falco..."
+  echo "[+] Installing Falco (with metrics enabled)..."
   helm install falco falcosecurity/falco \
     --namespace falco \
     -f values.yaml
 
-  echo "[+] Deploying nginx deployment..."
+  echo "[+] Deploying nginx workload..."
   kubectl create deployment nginx --image=nginx
 
   echo "[+] Installing Prometheus & Grafana..."
@@ -37,13 +37,41 @@ if [ "$1" == "up" ]; then
   helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
     --namespace monitoring --create-namespace
 
+  echo "[+] Waiting for Grafana pod to be Ready..."
+  kubectl wait --for=condition=Ready --timeout=180s pods -l app.kubernetes.io/name=grafana -n monitoring
+
+  echo "[+] Creating ConfigMap for Falco Dashboard..."
+  kubectl create configmap falco-dashboard \
+    --from-file=falco_dashboard.json=falco_dashboard.json \
+    -n monitoring || true
+  kubectl label configmap falco-dashboard -n monitoring grafana_dashboard=1 --overwrite
+
+  echo "[+] Creating ConfigMap for Grafana datasource..."
+  kubectl create configmap grafana-datasource \
+    --from-file=datasource.yaml=grafana_datasource.yaml \
+    -n monitoring || true
+  kubectl label configmap grafana-datasource -n monitoring grafana_datasource=1 --overwrite
+
+  echo "[+] Upgrading kube-prometheus-stack to load dashboard and datasource..."
+  helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+    --namespace monitoring \
+    --reuse-values \
+    --set grafana.sidecar.dashboards.enabled=true \
+    --set grafana.sidecar.dashboards.label=grafana_dashboard \
+    --set grafana.dashboardsConfigMaps.falco-dashboard="falco-dashboard" \
+    --set grafana.sidecar.datasources.enabled=true \
+    --set grafana.sidecar.datasources.label=grafana_datasource
+
   echo "[+] Forwarding Grafana service on port 3000..."
   kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80 &
-
+  
   echo "[+] Waiting for Falco pods to be Ready..."
   kubectl wait --for=condition=Ready --timeout=180s pods -l app.kubernetes.io/name=falco -n falco
 
   echo "[+] Lab setup complete."
+  echo "[+] Grafana is available at http://localhost:3000"
+  echo "[+] To get the Grafana admin password, run:"
+  echo "    kubectl -n monitoring get secrets kube-prometheus-stack-grafana -o jsonpath=\"{.data.admin-password}\" | base64 -d ; echo"
   echo "[+] To generate events, run: ./generate_events.sh"
   echo "[+] Tailing Falco logs..."
   kubectl logs -n falco -l app.kubernetes.io/name=falco -f
@@ -71,7 +99,7 @@ else
   exit 1
 fi
 
-# Example manual test commands:
+# Manual test examples:
 # kubectl run -it curl-test --image=alpine -- sh
 # apk add curl
 # curl http://example.com
