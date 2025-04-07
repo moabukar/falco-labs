@@ -33,6 +33,13 @@
   priority: NOTICE
   tags: [container, runtime]
 
+- rule: "Privilege escalation via setuid binary"
+  desc: "Detect execution of setuid binaries (e.g., sudo, passwd) in a container"
+  condition: "proc.name in (sudo, passwd) and evt.type = execve and container.id != host"
+  output: "Setuid binary execution detected (command=%proc.cmdline user=%user.name)"
+  priority: CRITICAL
+  tags: [privilege_escalation, container]
+
 - rule: shell_in_container
   desc: notice shell activity within a container
   condition: >
@@ -46,3 +53,10 @@
     (user=%user.name container_id=%container.id container_name=%container.name 
     shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline)    
   priority: WARNING
+
+- rule: "Unexpected network connection from container"
+  desc: "Detect network connection attempts from container processes"
+  condition: "evt.type = connect and container.id != host"
+  output: "Network connection from container detected (command=%proc.cmdline, connection=%fd.name)"
+  priority: NOTICE
+  tags: [network, container]
